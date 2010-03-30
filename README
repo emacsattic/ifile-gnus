@@ -1,0 +1,235 @@
+README for ifile-gnus.el and associated scripts.
+Copyright 2002 by Jeremy H. Brown <jhbrown@ai.mit.edu>
+This file is covered by the GNU General Public License.
+
+This README corresponds to ifile-gnus version-0-3-5.
+
+
+----------------------------------------------------------------
+CONTENTS:
+- Introduction
+- Installation
+- Configuration
+  - as general classifier
+  - as spam-filter
+- Usage
+- Comments
+- Tested on...
+- Limitations
+- Bugs
+
+-----------------------------------------------------------------
+INTRODUCTION
+
+ifile-gnus.el is a library for using Jason Rennie's "ifile" email
+classifier program with gnus.  It works with gnus 5.8.8, 5.9.0, and
+has been reported to work with the ongoing developmental "oort" gnus.
+
+ifile-gnus currently works with most (all?) of the nnmail backends.
+It does not currently work with nnimap.  
+
+The training schell scripts only work with the nnml backend; if you're
+using a different one, you'll either need to roll your own script
+(send it to me, I'll post it/incorporate it), or just start with an
+empty database and let it learn as you go.
+
+-----------------------------------------------------------------
+INSTALLATION
+
+This can be site-wide or personal.
+
+0) Install Jason Rennie's 'ifile' on your system; get it from
+<http://www.ai.mit.edu/~jrennie/ifile/>
+
+1) Put ifile-gnus.el somewhere in your emacs load-path.  If you
+didn't' put the ifile binary in your standard PATH, edit the
+configuration variable ifile-program, below, to specify ifile's
+location.
+
+2) Put the scripts ifile-gnus-initialize.sh and
+ifile-spamfilter-gnus-initialize.sh somewhere sensible
+(e.g. /usr/local/bin)
+
+-----------------------------------------------------------------
+CONFIGURATION
+
+This is for each individual. 
+
+You need to make a decision at this point: are you going to use ifile
+to do full-scale content-based classification of your mail?  Or are
+you just going to use it to differentiate spam from non-spam?  The
+latter is faster, but the former is cooler.  
+
+--------------------------
+FULL-SCALE CLASSIFICATION:
+
+1) If you're already using the nnml backend, initialize the ifile
+database (~/.idata) from your existing mail messages by running the
+script:
+
+ifile-gnus-initialize.sh <GNUS-MAIL-PATH> 
+
+where <GNUS-MAIL-PATH> is typically ~/GNUS or ~/Mail/GNUS
+
+If you've never used ifile or gnus before and you don't have any mail
+to initialize from, or if you aren't using the nnml backend, run the
+following command to create an initial ifile database:
+
+echo some words | ifile -i misc 
+
+This will cause ifile to start out by classifying all of your email as
+"misc".  If you don't do this, older versions of ifile will dump core
+when run in query-mode by emacs; newer ones will classify your mail as
+"(null)", which is ugly.
+
+
+2) put the lines
+(require 'ifile-gnus)
+(setq ifile-classification-mode 'full-classification)
+
+in your .gnus file
+
+3) Configure gnus to use fancy splitting; see the gnus info pages.
+
+4) Set 'nnmail-split-fancy' to call the function ifile-recommend
+to get ifile to recommend a split; the simplest way of doing this
+would be:
+
+(setq nnmail-split-fancy
+ '(|	
+  (: ifile-recommend)))
+
+However, you could use an arbitrarily more complicated split, write
+wrapper functions, etc.  ifile-recommend has no (relevant)
+side-effects.  (See Comments section, below.) 
+
+5) Restart emacs. 
+ 
+6) Have fun!
+
+--------------------------
+SPAM-FILTERING ONLY:
+
+1) If you're already using the nnml backend, initialize the ifile
+database (~/.idata) from your existing mail messages by running the
+script:
+
+ifile-spamfilter-gnus-initialize.sh <GNUS-MAIL-PATH> SPAM SPAM1 SPAM2...
+
+where <GNUS-MAIL-PATH> is typically ~/GNUS or ~/Mail/GNUS
+and SPAM, SPAM1, etc. are the names of your gnus group(s) which
+contain spam; everything else will be assumed to be non-spam.
+
+If you've never used ifile or gnus before and you don't have any mail
+to initialize from, or if you aren't using the nnml backend, run the
+following command to create an initial ifile database:
+
+echo some words | ifile -i non-spam 
+
+This will cause ifile to start out by classifying all of your email as
+non-spam.  If you don't do this, older versions of ifile will dump
+core when run in query-mode by emacs; newer ones will classify your
+mail as "(null)", which is ugly.
+
+
+2) put the lines
+(require 'ifile-gnus)
+(setq ifile-classification-mode 'spam-filter-only)
+(setq ifile-spam-groups '("spam" "spam.nigerian" "..."))
+(setq ifile-primary-spam-group "spam")
+
+ifile-spam-groups is a list of all the groups in which you keep spam
+mail, if you're into categorizing your spam.
+
+ifile-primary-spam-group is where newly-detected spam messages will
+get put.
+
+3) Configure gnus to use fancy splitting; see the gnus info pages.
+
+4) Set 'nnmail-split-fancy' to call the function ifile-spam-filter
+with one argument, which is another split; ifile-spam-filter will
+return the value of ifile-primary-spam-group if it thinks a message is
+spam, otherwise it will return the argument split.
+
+So a very simple version might be:
+
+(setq nnmail-split-fancy
+ '(|	
+   (: ifile-spam-filter "not-spam")))
+
+But you probably want to do more rules-based classification, so you
+might have something more like this:
+
+(setq nnmail-split-fancy
+      '(|	
+	(: ifile-spam-filter 
+	   '(|
+	     (any ".*seminar.*" (& "seminars" "dates"))
+	     ("subject" "seminar" (& "seminars" "dates"))
+	     (any "cluster-hackers@ai\\.mit\\.edu" "cluster-hackers")
+	     "misc"))))
+
+5) Restart emacs. 
+ 
+6) Have fun!
+
+
+-----------------------------------------------------------------
+USAGE
+
+Once you have installed ifile-gnus, ifile will be notified as to
+where each piece of email actually gets classified.  
+
+When you move a piece of mail from one class to another
+(e.g. using B-m), ifile is invoked to update its database; ifile
+is also notified when you respool mail (B-r) or edit mail (e).
+
+That's really about it.  It's really simple.
+
+If you want to turn off ifile for awhile (e.g. when you are expiring
+messages), set the variable ifile-active to nil; set it back to t when
+you want ifile to start working again.
+
+
+-----------------------------------------------------------------
+COMMENTS:
+
+When splitting mail, if you override or ignore the recommendation
+from ifile-recommend in favor of some pattern-based split or
+whatever, this will gradually train ifile so that its
+recommendations come more into line with your patterns.
+
+My experience has been that ifile is 80-90% accurate in general email
+classification, and insanely accurate in spam vs. non-spam
+classification.  The ideal setup, in my opinion, would be to use ifile
+first to check for spam, then hand-written split rules to handle known
+cases, then ifile again to classify anything the hand-written rules
+missed.  I haven't quite got all the pieces in place yet to do this,
+but it's coming.
+
+-----------------------------------------------------------------
+LIMITATIONS
+- There is no support for understanding or recommending crossposting.
+  This will happen.  I'm currently taking suggestions on The Right Way.
+
+- Performance degrades when the ifile database is large;
+  the database gets large when you have many classes, so
+  spam-filtering will tend to be a lot faster than full classification.
+  This will become mostly a non-issue when (if?) ifile gets daemonized.
+
+-----------------------------------------------------------------
+TESTED USING:
+- ifile 1.0.11
+- Gnus v5.9.0
+- Emacs 21.1.1
+
+-----------------------------------------------------------------
+BUGS
+- none currently active.
+
+Please report all bugs to jhbrown@ai.mit.edu; include the phrase
+"ifile-gnus" in the Subject line.  Also consider CC'ing your bug
+report to ifile-discuss@yahoogroups.com
+
+
+

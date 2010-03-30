@@ -1,0 +1,20 @@
+Bugs:
+------------------------------------------------------------
+
+Soon:
+------------------------------------------------------------
+- memoize result of running ifile -q
+- fix Xref header issue
+- extend to nnimap
+- replace training shell scripts with generalized elisp
+
+Eventually:
+------------------------------------------------------------
+- add statistics counters
+- replace use of message with nnheader-message?
+- enable multi-way classification
+
+Approximately never:
+------------------------------------------------------------
+- generalize for different spamfilters
+- maybe use -k option?  NO, grows DB to huge size
