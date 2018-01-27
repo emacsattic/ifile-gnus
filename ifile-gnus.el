@@ -3,6 +3,9 @@
 ;;; backends.
 ;;;
 ;;; Copyright 2002 by Jeremy H. Brown <jhbrown@ai.mit.edu>
+;;;
+;;; License: GPL
+;;;
 ;;; This file is covered by the GNU General Public License.
 ;;; 
 ;;; 
